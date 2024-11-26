@@ -1,28 +1,26 @@
-const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const http = require('http');
+const { createProxyServer } = require('http-proxy');
 
-// Define the target server (this can be any valid URL)
-const TARGET_SERVER = 'https://www.youtube.com'; // Example target server
-
-// Create an Express app
-const app = express();
-
-// Proxy requests starting with /api to the target server
-app.use('/api', createProxyMiddleware({
-    target: TARGET_SERVER,
-    changeOrigin: true,
-    pathRewrite: {
-        '^/api': '', // Remove `/api` from the forwarded request path
-    },
-}));
-
-// Handle other routes
-app.get('/', (req, res) => {
-    res.send('Proxy Server is Running!');
+// Create a proxy server
+const proxy = createProxyServer({
+  target: 'https://www.youtube.com',
+  changeOrigin: true,
+  secure: false // Set to true if you want to verify SSL certificates
 });
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Proxy server is running at http://localhost:${PORT}`);
+// Create an HTTP server that listens for incoming requests
+const server = http.createServer((req, res) => {
+  proxy.web(req, res, (err) => {
+    console.error('Proxy error:', err);
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    res.end('Something went wrong with the proxy.');
+  });
+});
+
+// Specify the IP address and port for the proxy server
+const proxyPort = 3000;
+const proxyHost = '0.0.0.0'; // Listen on all interfaces
+
+server.listen(proxyPort, proxyHost, () => {
+  console.log(`Proxy server is running at http://${proxyHost}:${proxyPort} and forwarding to YouTube`);
 });
